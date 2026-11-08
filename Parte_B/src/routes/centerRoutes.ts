@@ -11,5 +11,8 @@ router.post("/agents/:id/logout", CenterController.logoutAgent);
 router.post("/agents/:id/pause", CenterController.pauseAgent);
 router.post("/agents/:id/unpause", CenterController.unpauseAgent);
 router.get("/queues", CenterController.getQueues);
+router.get("/stream", (req, res) => {
+  sseService.addClient(req, res);
+});
 
 export default router;

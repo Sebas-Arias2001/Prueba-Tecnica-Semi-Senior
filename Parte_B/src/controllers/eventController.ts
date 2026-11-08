@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import { EventPayload } from "../models/types";
+import type { Request, Response } from "express";
+import type { EventPayload } from "../models/types";
 import { CallQueueService } from "../services/callQueueService";
 
 // Set en memoria para registrar eventIds procesados (Control de idempotencia)
