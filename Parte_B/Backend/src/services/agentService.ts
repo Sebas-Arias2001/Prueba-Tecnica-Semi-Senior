@@ -41,11 +41,11 @@ export const agentsStore: Map<string, Agent> = new Map([
 // Mapa para rastrear los timers de wrap_up automáticos de 15s
 const wrapUpTimers: Map<string, NodeJS.Timeout> = new Map();
 
-// Solo estas 10 transiciones son válidas según el diagrama oficial
+// Solo estas transiciones son válidas según el diagrama oficial + extensión call.noanswer
 const validTransitions: Record<AgentState, AgentState[]> = {
   OFFLINE: ['DISPONIBLE'],
   DISPONIBLE: ['OFFLINE', 'TIMBRANDO', 'PAUSA'],
-  TIMBRANDO: ['DISPONIBLE', 'EN_LLAMADA'],
+  TIMBRANDO: ['DISPONIBLE', 'EN_LLAMADA', 'PAUSA'], // PAUSA agregado para call.noanswer
   EN_LLAMADA: ['WRAP_UP'],
   WRAP_UP: ['DISPONIBLE'],
   PAUSA: ['DISPONIBLE', 'OFFLINE'],
@@ -121,6 +121,9 @@ export class AgentService {
           AgentService.changeState(agentId, 'DISPONIBLE');
         }
       }, 15000);
+      if (timer.unref) {
+        timer.unref();
+      }
       wrapUpTimers.set(agentId, timer);
     }
 

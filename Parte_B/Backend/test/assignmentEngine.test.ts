@@ -99,6 +99,9 @@ describe('Motor de asignación y métricas de colas', () => {
     CallQueueService.handleCallHangup('c-att');
 
     // Llamada 2: abandonada en cola
+    // El agente debe estar en DISPONIBLE para poder pausarse (viene de WRAP_UP -> auto DISPONIBLE en test no espera)
+    // Forzamos DISPONIBLE directamente para el test
+    AgentService.changeState('a-1001', 'DISPONIBLE');
     AgentService.changeState('a-1001', 'PAUSA');
     CallQueueService.handleIncomingCall('c-abn', 'soporte', '+57302');
     CallQueueService.handleCallHangup('c-abn');

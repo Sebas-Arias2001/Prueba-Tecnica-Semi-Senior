@@ -1,10 +1,12 @@
 /**
  * Script de prueba oficial para la simulación de eventos en tiempo real.
- * Ejecuta la secuencia exacta descrita en el documento de la prueba técnica:
+ * Ejecuta la secuencia descrita en el documento de la prueba técnica más
+ * las extensiones operativas implementadas:
  * 1. call.incoming
  * 2. call.answered
  * 3. call.answered (duplicado con el mismo eventId)
- * 4. call.hangup
+ * 4. call.hangup -> WRAP_UP por 15s y retorno a DISPONIBLE
+ * 5. call.incoming + call.noanswer -> Agente pasa a PAUSA ("No contesta") y llamada vuelve a cola
  *
  * Muestra el comportamiento del backend y la actualización en vivo del tablero.
  */
@@ -108,15 +110,71 @@ async function run() {
         },
         waitAfter: 16000, // 16s para ver el conteo de WRAP_UP y el retorno automático a DISPONIBLE
       },
+      {
+        description: '5. Entrada de nueva llamada c-002 (se asigna a a-1001 tras salir de WRAP_UP)',
+        event: {
+          eventId: 'e-004',
+          ts: '2026-11-10T14:05:00Z',
+          type: 'call.incoming',
+          callId: 'c-002',
+          queue: 'soporte',
+          callerId: '+573109876543',
+        },
+        waitAfter: 4000, // 4s en TIMBRANDO
+      },
+      {
+        description: '6. Agente no contesta (call.noanswer) -> Agente pasa a PAUSA ("No contesta") y llamada c-002 vuelve al inicio de la cola',
+        event: {
+          eventId: 'e-005',
+          ts: '2026-11-10T14:05:20Z',
+          type: 'call.noanswer',
+          callId: 'c-002',
+        },
+        waitAfter: 5000, // 5s para observar al agente en PAUSA y la cola con 1 en espera
+      },
+      {
+        description: '7. Supervisor/Agente se despausa (unpause) -> Recupera estado DISPONIBLE y la llamada c-002 se reasigna inmediatamente',
+        customAction: async () => {
+          console.log('Ejecutando despausa de a-1001...');
+          const unpauseRes = await makeRequest('POST', '/api/agents/a-1001/unpause');
+          console.log('Respuesta Unpause:', unpauseRes.data);
+        },
+        waitAfter: 4000,
+      },
+      {
+        description: '8. Agente contesta finalmente la llamada reasignada c-002',
+        event: {
+          eventId: 'e-006',
+          ts: '2026-11-10T14:05:30Z',
+          type: 'call.answered',
+          callId: 'c-002',
+          agentId: 'a-1001',
+        },
+        waitAfter: 3000,
+      },
+      {
+        description: '9. Fin de la llamada c-002 (call.hangup)',
+        event: {
+          eventId: 'e-007',
+          ts: '2026-11-10T14:06:00Z',
+          type: 'call.hangup',
+          callId: 'c-002',
+        },
+        waitAfter: 2000,
+      },
     ];
 
     for (const step of sequence) {
       console.log(`\n----------------------------------------------------`);
       console.log(`> ${step.description}`);
-      console.log('Enviando payload:', JSON.stringify(step.event));
 
-      const res = await makeRequest('POST', '/api/events', step.event);
-      console.log(`Respuesta [HTTP ${res.status}]:`, res.data);
+      if (step.customAction) {
+        await step.customAction();
+      } else if (step.event) {
+        console.log('Enviando payload:', JSON.stringify(step.event));
+        const res = await makeRequest('POST', '/api/events', step.event);
+        console.log(`Respuesta [HTTP ${res.status}]:`, res.data);
+      }
 
       console.log(`Pausando ${step.waitAfter / 1000}s para apreciar el estado en el tablero...`);
       await sleep(step.waitAfter);

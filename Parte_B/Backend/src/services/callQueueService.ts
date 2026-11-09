@@ -3,8 +3,8 @@ import { agentsStore, AgentService } from './agentService';
 import { sseService } from './sseService';
 
 export const queuesStore: Map<string, Queue> = new Map([
-  ['soporte', { id: 'soporte', name: 'Cola de Soporte', maxWaitSeconds: 60 }],
-  ['ventas', { id: 'ventas', name: 'Cola de Ventas', maxWaitSeconds: 60 }],
+  ['soporte', { id: 'soporte', name: 'Cola de Soporte', maxWaitSeconds: 60, noAnswerSeconds: 20 }],
+  ['ventas', { id: 'ventas', name: 'Cola de Ventas', maxWaitSeconds: 60, noAnswerSeconds: 20 }],
 ]);
 
 export const callsStore: Map<string, Call> = new Map();
@@ -14,6 +14,9 @@ export const waitingQueues: Map<string, string[]> = new Map([
   ['soporte', []],
   ['ventas', []],
 ]);
+
+// Timers de no-contesta: callId -> NodeJS.Timeout
+const noAnswerTimers: Map<string, NodeJS.Timeout> = new Map();
 
 export class CallQueueService {
   static {
@@ -53,12 +56,13 @@ export class CallQueueService {
       return { success: false, message: msg, call: existing };
     }
 
-    // Si la cola no existe, crearla dinámicamente o registrar error
+    // Si la cola no existe, crearla dinamicamente o registrar error
     if (!queuesStore.has(queueId)) {
       queuesStore.set(queueId, {
         id: queueId,
         name: `Cola ${queueId}`,
         maxWaitSeconds: 60,
+        noAnswerSeconds: 20,
       });
       waitingQueues.set(queueId, []);
     }
@@ -82,13 +86,13 @@ export class CallQueueService {
     waitingQueues.get(queueId)!.push(callId);
 
     console.log(
-      `[LLAMADA] ${callId} de ${callerId} ingresó a la cola [${queueId}].`
+      `[LLAMADA] ${callId} de ${callerId} ingresar a la cola [${queueId}].`
     );
 
-    // Intentar asignar inmediatamente si hay algún agente disponible
+    // Intentar asignar inmediatamente si hay algun agente disponible
     this.tryAssignCall(queueId);
 
-    // Notificar actualización en tiempo real
+    // Notificar actualizacion en tiempo real
     sseService.broadcastUpdate({
       type: 'call_incoming',
       data: { call: callsStore.get(callId) },
@@ -128,9 +132,9 @@ export class CallQueueService {
       return { success: false, message: msg };
     }
 
-    // Validar que el agente esté en TIMBRANDO
+    // Validar que el agente esta en TIMBRANDO
     if (agent.state !== 'TIMBRANDO') {
-      const msg = `[LOG RECHAZADO] Agente ${agentId} no está en estado TIMBRANDO (estado actual: ${agent.state}).`;
+      const msg = `[LOG RECHAZADO] Agente ${agentId} no esta¡ en estado TIMBRANDO (estado actual: ${agent.state}).`;
       console.warn(msg);
       return { success: false, message: msg };
     }
@@ -196,7 +200,7 @@ export class CallQueueService {
         const agent = agentsStore.get(assignedAgentId);
         if (agent && agent.state === 'TIMBRANDO') {
           console.log(
-            `[COLGADA] Cliente colgó mientras timbraba. Agente ${assignedAgentId} vuelve a DISPONIBLE.`
+            `[COLGADA] Cliente colgo mientras timbraba. Agente ${assignedAgentId} vuelve a DISPONIBLE.`
           );
           AgentService.changeState(assignedAgentId, 'DISPONIBLE');
         }
@@ -234,8 +238,8 @@ export class CallQueueService {
     };
   }
 
-  // Motor de asignación:
-  // "cuando entra una llamada o un agente queda disponible, asigna la llamada más antigua de la cola al agente DISPONIBLE de esa cola que lleve más tiempo libre."
+  // Motor de asignacion:
+  // "cuando entra una llamada o un agente queda disponible, asigna la llamada mas antigua de la cola al agente DISPONIBLE de esa cola que lleve mas tiempo libre."
   static tryAssignCall(queueId: string): boolean {
     const queueList = waitingQueues.get(queueId);
     if (!queueList || queueList.length === 0) {
@@ -251,7 +255,7 @@ export class CallQueueService {
       return false;
     }
 
-    // Ordenar agentes por quien lleve más tiempo en estado DISPONIBLE (stateChangedAt más antiguo)
+    // Ordenar agentes por quien lleve mas tiempo en estado DISPONIBLE (stateChangedAt mas antiguo)
     availableAgents.sort(
       (a, b) =>
         new Date(a.stateChangedAt).getTime() -
@@ -260,16 +264,16 @@ export class CallQueueService {
 
     const selectedAgent = availableAgents[0]!;
 
-    // Tomar la llamada más antigua de la cola (FIFO: elemento 0)
+    // Tomar la llamada mas antigua de la cola (FIFO: elemento 0)
     const callId = queueList.shift()!;
     const call = callsStore.get(callId);
 
     if (!call || call.state !== 'EN_COLA') {
-      // Si por alguna razón la llamada ya no está en espera, continuar intentando
+      // Si por alguna razon la llamada ya no esta en espera, continuar intentando
       return this.tryAssignCall(queueId);
     }
 
-    // Asignación atómica en memoria
+    // Asignacion atomica en memoria
     call.state = 'TIMBRANDO';
     call.assignedAgentId = selectedAgent.id;
     call.timestamps.ringing = new Date().toISOString();
@@ -279,8 +283,19 @@ export class CallQueueService {
     AgentService.changeState(selectedAgent.id, 'TIMBRANDO');
 
     console.log(
-      `[ASIGNACIÓN] Llamada ${callId} asignada al agente ${selectedAgent.name} (${selectedAgent.id}) en cola [${queueId}].`
+      `[ASIGNACIÃON] Llamada ${callId} asignada al agente ${selectedAgent.name} (${selectedAgent.id}) en cola [${queueId}].`
     );
+
+    // Iniciar timer de no-contesta segun la configuracion de la cola
+    const queue = queuesStore.get(queueId);
+    const noAnswerSecs = queue?.noAnswerSeconds ?? 20;
+    const noAnswerTimer = setTimeout(() => {
+      CallQueueService.handleNoAnswer(callId);
+    }, noAnswerSecs * 1000);
+    if (noAnswerTimer.unref) {
+      noAnswerTimer.unref();
+    }
+    noAnswerTimers.set(callId, noAnswerTimer);
 
     sseService.broadcastUpdate({
       type: 'call_assigned',
@@ -290,12 +305,12 @@ export class CallQueueService {
     return true;
   }
 
-  // Cuando un agente específico queda DISPONIBLE, buscar si hay llamadas en espera en sus colas
+  // Cuando un agente especi­fico queda DISPONIBLE, buscar si hay llamadas en espera en sus colas
   static handleAgentBecameAvailable(agentId: string) {
     const agent = agentsStore.get(agentId);
     if (!agent || agent.state !== 'DISPONIBLE') return;
 
-    // Buscar entre todas las colas del agente cuál tiene la llamada más antigua
+    // Buscar entre todas las colas del agente cual tiene la llamada mas antigua
     let oldestCall: Call | null = null;
     let targetQueueId: string | null = null;
 
@@ -322,7 +337,61 @@ export class CallQueueService {
     }
   }
 
-  // Métricas por cola: llamadas en espera, atendidas, abandonadas y la espera más larga en este momento
+  // Cuando el agente no contesta en el tiempo configurado (call.noanswer)
+  static handleNoAnswer(
+    callId: string
+  ): { success: boolean; message: string } {
+    const call = callsStore.get(callId);
+    if (!call) {
+      const msg = `[LOG RECHAZADO] call.noanswer para llamada inexistente ${callId}.`;
+      console.warn(msg);
+      return { success: false, message: msg };
+    }
+
+    // Solo aplica si la llamada sigue en TIMBRANDO
+    if (call.state !== 'TIMBRANDO') {
+      const msg = `[LOG RECHAZADO] call.noanswer ignorado: llamada ${callId} ya no esta en TIMBRANDO (${call.state}).`;
+      console.warn(msg);
+      return { success: false, message: msg };
+    }
+
+    const agentId = call.assignedAgentId;
+
+    // La llamada vuelve al inicio de la cola (unshift = primera posicion)
+    call.state = 'EN_COLA';
+    call.assignedAgentId = undefined;
+    call.timestamps.ringing = undefined;
+    callsStore.set(callId, call);
+
+    const qList = waitingQueues.get(call.queue);
+    if (qList) {
+      qList.unshift(callId); // Inicio de cola, no al final
+    }
+
+    console.log(
+      `[NO CONTESTA] Llamada ${callId} vuelve al inicio de la cola [${call.queue}].`
+    );
+
+    // El agente pasa a PAUSA con motivo "No contesta"
+    if (agentId) {
+      AgentService.changeState(agentId, 'PAUSA', 'No contesta');
+      console.log(
+        `[NO CONTESTA] Agente ${agentId} pasa a PAUSA con motivo "No contesta".`
+      );
+    }
+
+    sseService.broadcastUpdate({
+      type: 'call_noanswer',
+      data: { callId, agentId, call },
+    });
+
+    return {
+      success: true,
+      message: `Llamada ${callId} devuelta al inicio de la cola por no contesta.`,
+    };
+  }
+
+  // Matricas por cola: llamadas en espera, atendidas, abandonadas y la espera mÃ¡s larga en este momento
   static getQueueMetrics(queueId: string): QueueMetrics {
     const queueList = waitingQueues.get(queueId) || [];
     let attendedCount = 0;
@@ -331,7 +400,7 @@ export class CallQueueService {
 
     const now = Date.now();
 
-    // 1. Espera más larga en este momento:
+    // 1. Espera mas larga en este momento:
     // Se calcula sobre las llamadas actualmente en espera (EN_COLA)
     for (const callId of queueList) {
       const call = callsStore.get(callId);
@@ -366,6 +435,9 @@ export class CallQueueService {
 
   // Método auxiliar para testing (resetear stores)
   static _resetForTesting() {
+    // Limpiar timers de no-contesta activos
+    noAnswerTimers.forEach((timer) => clearTimeout(timer));
+    noAnswerTimers.clear();
     callsStore.clear();
     waitingQueues.set('soporte', []);
     waitingQueues.set('ventas', []);

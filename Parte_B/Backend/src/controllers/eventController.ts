@@ -90,6 +90,17 @@ export class EventController {
             }
             break;
 
+          case 'call.noanswer':
+            if (callId) {
+              actionResult = CallQueueService.handleNoAnswer(callId);
+            } else {
+              actionResult = {
+                success: false,
+                message: 'call.noanswer requiere el campo callId',
+              };
+            }
+            break;
+
           default:
             console.warn(`[LOG RECHAZADO] Tipo de evento desconocido: ${type}`);
             actionResult = {

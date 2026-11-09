@@ -1,7 +1,11 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { AgentService, agentsStore } from '../src/services/agentService';
-import { CallQueueService, callsStore } from '../src/services/callQueueService';
+import {
+  CallQueueService,
+  callsStore,
+  waitingQueues,
+} from '../src/services/callQueueService';
 import {
   EventController,
   processedEvents,
@@ -189,6 +193,55 @@ describe('Idempotencia de eventos y flujo de secuencia oficial', () => {
     assert.strictEqual(bodyData.results.length, 2);
     assert.strictEqual(callsStore.get('c-b1')?.state, 'CONECTADA');
     assert.strictEqual(agentsStore.get('a-1001')?.state, 'EN_LLAMADA');
+  });
+
+  it('Procesa evento call.noanswer: agente pasa a PAUSA y la llamada vuelve al inicio de la cola', () => {
+    AgentService.changeState('a-1001', 'DISPONIBLE');
+
+    // Entra llamada c-noans y se asigna a a-1001 (TIMBRANDO)
+    CallQueueService.handleIncomingCall('c-noans', 'soporte', '+57300555');
+    assert.strictEqual(callsStore.get('c-noans')?.state, 'TIMBRANDO');
+    assert.strictEqual(agentsStore.get('a-1001')?.state, 'TIMBRANDO');
+
+    // Entra otra llamada c-behind que queda en espera
+    CallQueueService.handleIncomingCall('c-behind', 'soporte', '+57300777');
+    assert.strictEqual(waitingQueues.get('soporte')?.[0], 'c-behind');
+
+    let bodyData: any = null;
+    const res = {
+      status: () => ({
+        json: (d: any) => { bodyData = d; },
+      }),
+      json: (d: any) => { bodyData = d; },
+    };
+
+    // Disparamos evento call.noanswer
+    EventController.handleEvent(
+      {
+        body: {
+          eventId: 'e-noans-1',
+          ts: '2026-11-10T14:00:20Z',
+          type: 'call.noanswer',
+          callId: 'c-noans',
+        },
+      } as any,
+      res as any
+    );
+
+    // 1. Agente pasa a PAUSA con motivo 'No contesta'
+    const agent = agentsStore.get('a-1001');
+    assert.strictEqual(agent?.state, 'PAUSA');
+    assert.strictEqual(agent?.pauseReason, 'No contesta');
+
+    // 2. La llamada c-noans vuelve al estado EN_COLA
+    const call = callsStore.get('c-noans');
+    assert.strictEqual(call?.state, 'EN_COLA');
+    assert.strictEqual(call?.assignedAgentId, undefined);
+
+    // 3. La llamada c-noans está en el inicio de la cola (unshift), delante de c-behind
+    const queueList = waitingQueues.get('soporte');
+    assert.strictEqual(queueList?.[0], 'c-noans');
+    assert.strictEqual(queueList?.[1], 'c-behind');
   });
 });
 

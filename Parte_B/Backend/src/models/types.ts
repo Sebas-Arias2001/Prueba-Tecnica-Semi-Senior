@@ -27,6 +27,7 @@ export interface Queue {
   id: string;
   name: string;
   maxWaitSeconds: number;
+  noAnswerSeconds: number; // Segundos máximos de timbrado antes de disparar call.noanswer
 }
 
 export interface QueueMetrics {
@@ -58,7 +59,7 @@ export interface Call {
 export interface EventPayload {
   eventId: string;
   ts: string;
-  type: 'call.incoming' | 'call.answered' | 'call.hangup' | string;
+  type: 'call.incoming' | 'call.answered' | 'call.hangup' | 'call.noanswer' | string;
   callId?: string;
   queue?: string;
   callerId?: string;
