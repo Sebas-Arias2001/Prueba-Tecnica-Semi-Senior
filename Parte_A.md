@@ -1,17 +1,17 @@
 Parte A — Cuestionario de telefonía y Contact Center
 1.Flujo SIP.
-Describe los mensajes principales de una llamada básica entre dos teléfonos, desde quese marca hasta que se cuelga.
+Describe los mensajes principales de una llamada básica entre dos teléfonos, desde que se marca hasta que se cuelga.
 R//En un flujo SIP tenemos: 
-INVITE - Cuando el telefono origen solicita la llamda al destinado.
-RING 108 - Conecto la llamda y empezo a sonar.
-200 OK - Nos Indica que la llamda fue aceptada por el destinatario
+INVITE - Cuando el telefono origen solicita la llamada al destinado.
+RING 108 - Conecto la llamada y empezo a sonar.
+200 OK - Nos Indica que la llamada fue aceptada por el destinatario
 ACK - Confirma el 200 OK e incia el flujo de audio.
 BYE - Indica que uno de los dos colgo la llamada.
 
 2.SIP y RTP.
 ¿Qué transporta cada uno? Si un agente oye al cliente pero el cliente no lo oye a él, ¿quérevisarías primero?
-R//El SIP permite el control de la llamda como: marcar,contestar,sonar,colgar.
-El RTP permite el flujo de audio en la llamda.
+R//El SIP permite el control de la llamada como: marcar,contestar,sonar,colgar.
+El RTP permite el flujo de audio en la llamada.
 
 Validar que los perifericos esten bien conectados y los permisos de los dispositivos aceptados en el navegador. Si esto se encuentra bien debemos revisar si el flujo RTP bloqueo la IP o el puerto publico de retorno esta mal traducido en la cabecera.
 
