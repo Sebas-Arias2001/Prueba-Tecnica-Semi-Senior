@@ -1,29 +1,28 @@
 {
-  "name": "parte_b",
+  "name": "parte_b-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Backend para panel de agentes y colas en tiempo real",
+  "main": "dist/index.js",
   "scripts": {
+    "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
-    "simulate": "node test-script.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch src/index.ts",
+    "simulate": "node scripts/test-script.js",
+    "test": "tsx --test test/**/*.test.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.9",
-    "express": "^5.3.0"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.6",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.18.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
   }
 }
