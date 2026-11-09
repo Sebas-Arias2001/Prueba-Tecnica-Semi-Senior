@@ -1,6 +1,6 @@
 # WeKall — Prueba Técnica Desarrollador Semi Senior, Contact Center
 
-Solución completa a la prueba técnica para el rol de Desarrollador Semi Senior de Contact Center en WeKall (Squad Poseidón).
+Solución completa a la prueba técnica para el rol de Desarrollador Semi Senior de Contact Center en WeKall.
 
 ---
 
