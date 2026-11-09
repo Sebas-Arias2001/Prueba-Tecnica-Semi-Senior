@@ -18,6 +18,9 @@ export const waitingQueues: Map<string, string[]> = new Map([
 // Timers de no-contesta: callId -> NodeJS.Timeout
 const noAnswerTimers: Map<string, NodeJS.Timeout> = new Map();
 
+// Timers de espera máxima en cola: callId -> NodeJS.Timeout
+const maxWaitTimers: Map<string, NodeJS.Timeout> = new Map();
+
 export class CallQueueService {
   static {
     // Registrar callback para cuando cualquier agente pasa a DISPONIBLE
@@ -91,6 +94,12 @@ export class CallQueueService {
 
     // Intentar asignar inmediatamente si hay algun agente disponible
     this.tryAssignCall(queueId);
+
+    // Si no pudo ser asignada y sigue EN_COLA, iniciar temporizador de tiempo maximo de espera
+    const callAfterAssign = callsStore.get(callId);
+    if (callAfterAssign && callAfterAssign.state === 'EN_COLA') {
+      this.startMaxWaitTimer(callId, queueId);
+    }
 
     // Notificar actualizacion en tiempo real
     sseService.broadcastUpdate({
@@ -183,6 +192,16 @@ export class CallQueueService {
     const previousState = call.state;
     const assignedAgentId = call.assignedAgentId;
 
+    // Cancelar cualquier timer pendiente de maxWait o noAnswer
+    if (maxWaitTimers.has(callId)) {
+      clearTimeout(maxWaitTimers.get(callId)!);
+      maxWaitTimers.delete(callId);
+    }
+    if (noAnswerTimers.has(callId)) {
+      clearTimeout(noAnswerTimers.get(callId)!);
+      noAnswerTimers.delete(callId);
+    }
+
     if (previousState === 'EN_COLA' || previousState === 'TIMBRANDO') {
       // Si la llamada estaba en cola o timbrando, queda ABANDONADA
       call.state = 'ABANDONADA';
@@ -271,6 +290,12 @@ export class CallQueueService {
     if (!call || call.state !== 'EN_COLA') {
       // Si por alguna razon la llamada ya no esta en espera, continuar intentando
       return this.tryAssignCall(queueId);
+    }
+
+    // Cancelar timer de espera maxima en cola ya que fue atendida/asignada
+    if (maxWaitTimers.has(callId)) {
+      clearTimeout(maxWaitTimers.get(callId)!);
+      maxWaitTimers.delete(callId);
     }
 
     // Asignacion atomica en memoria
@@ -380,6 +405,9 @@ export class CallQueueService {
       );
     }
 
+    // Reiniciar timer de espera máxima para la llamada que regresó a la cola
+    this.startMaxWaitTimer(callId, call.queue);
+
     sseService.broadcastUpdate({
       type: 'call_noanswer',
       data: { callId, agentId, call },
@@ -388,6 +416,74 @@ export class CallQueueService {
     return {
       success: true,
       message: `Llamada ${callId} devuelta al inicio de la cola por no contesta.`,
+    };
+  }
+
+  // Iniciar temporizador de tiempo máximo de espera en cola
+  static startMaxWaitTimer(callId: string, queueId: string) {
+    if (maxWaitTimers.has(callId)) {
+      clearTimeout(maxWaitTimers.get(callId)!);
+      maxWaitTimers.delete(callId);
+    }
+
+    const queue = queuesStore.get(queueId);
+    const maxWaitSecs = queue?.maxWaitSeconds ?? 60;
+
+    const timer = setTimeout(() => {
+      CallQueueService.handleMaxWaitTimeout(callId);
+    }, maxWaitSecs * 1000);
+
+    if (timer.unref) {
+      timer.unref();
+    }
+    maxWaitTimers.set(callId, timer);
+  }
+
+  // Cuando se vence el tiempo máximo de espera por cola (llamada sale como ABANDONADA)
+  static handleMaxWaitTimeout(callId: string): { success: boolean; message: string } {
+    const call = callsStore.get(callId);
+    if (!call) {
+      return { success: false, message: `Llamada ${callId} no encontrada` };
+    }
+
+    // Solo aplica si sigue esperando en cola
+    if (call.state !== 'EN_COLA') {
+      return {
+        success: false,
+        message: `Llamada ${callId} ya no está EN_COLA (estado actual: ${call.state})`,
+      };
+    }
+
+    // Remover de la cola de espera
+    const qList = waitingQueues.get(call.queue);
+    if (qList) {
+      const idx = qList.indexOf(callId);
+      if (idx !== -1) {
+        qList.splice(idx, 1);
+      }
+    }
+
+    // Marcar como ABANDONADA por timeout
+    call.state = 'ABANDONADA';
+    call.timestamps.abandoned = new Date().toISOString();
+    callsStore.set(callId, call);
+
+    if (maxWaitTimers.has(callId)) {
+      maxWaitTimers.delete(callId);
+    }
+
+    console.log(
+      `[TIEMPO MÁXIMO] Llamada ${callId} superó el tiempo máximo de espera en cola [${call.queue}]. Marcada como ABANDONADA.`
+    );
+
+    sseService.broadcastUpdate({
+      type: 'call_timeout_abandoned',
+      data: { callId, queue: call.queue, call },
+    });
+
+    return {
+      success: true,
+      message: `Llamada ${callId} marcada como ABANDONADA por exceder tiempo máximo de espera.`,
     };
   }
 
@@ -435,9 +531,11 @@ export class CallQueueService {
 
   // Método auxiliar para testing (resetear stores)
   static _resetForTesting() {
-    // Limpiar timers de no-contesta activos
+    // Limpiar timers de no-contesta y max-wait activos
     noAnswerTimers.forEach((timer) => clearTimeout(timer));
     noAnswerTimers.clear();
+    maxWaitTimers.forEach((timer) => clearTimeout(timer));
+    maxWaitTimers.clear();
     callsStore.clear();
     waitingQueues.set('soporte', []);
     waitingQueues.set('ventas', []);

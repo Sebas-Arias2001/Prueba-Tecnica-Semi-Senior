@@ -115,5 +115,31 @@ describe('Motor de asignación y métricas de colas', () => {
     assert.strictEqual(metrics.abandonedCalls, 1);
     assert.ok(metrics.longestWaitSeconds >= 0);
   });
+
+  it('Marca la llamada como ABANDONADA y la remueve de la cola al vencerse el tiempo máximo de espera', () => {
+    // Ningún agente conectado, la llamada entra a soporte
+    CallQueueService.handleIncomingCall('c-timeout-1', 'soporte', '+573009998877');
+
+    const callBefore = callsStore.get('c-timeout-1');
+    assert.strictEqual(callBefore?.state, 'EN_COLA');
+    assert.strictEqual(waitingQueues.get('soporte')?.includes('c-timeout-1'), true);
+
+    // Disparamos la expiración del tiempo máximo de espera de forma explícita
+    const result = CallQueueService.handleMaxWaitTimeout('c-timeout-1');
+    assert.strictEqual(result.success, true);
+
+    // 1. La llamada debe cambiar su estado a ABANDONADA
+    const callAfter = callsStore.get('c-timeout-1');
+    assert.strictEqual(callAfter?.state, 'ABANDONADA');
+    assert.ok(callAfter?.timestamps.abandoned);
+
+    // 2. Ya no debe figurar en la lista de espera de la cola
+    assert.strictEqual(waitingQueues.get('soporte')?.includes('c-timeout-1'), false);
+
+    // 3. La métrica de abandonadas de la cola debe reflejarla
+    const metrics = CallQueueService.getQueueMetrics('soporte');
+    assert.strictEqual(metrics.abandonedCalls, 1);
+    assert.strictEqual(metrics.waitingCalls, 0);
+  });
 });
 

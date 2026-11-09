@@ -7,6 +7,7 @@
  * 3. call.answered (duplicado con el mismo eventId)
  * 4. call.hangup -> WRAP_UP por 15s y retorno a DISPONIBLE
  * 5. call.incoming + call.noanswer -> Agente pasa a PAUSA ("No contesta") y llamada vuelve a cola
+ * 6. Tiempo máximo de espera en cola -> La llamada expira y pasa a ABANDONADA
  *
  * Muestra el comportamiento del backend y la actualización en vivo del tablero.
  */
@@ -159,6 +160,36 @@ async function run() {
           ts: '2026-11-10T14:06:00Z',
           type: 'call.hangup',
           callId: 'c-002',
+        },
+        waitAfter: 3000,
+      },
+      {
+        description: '10. Agente a-1001 se pone en PAUSA para simular cola sin agentes disponibles',
+        customAction: async () => {
+          const pauseRes = await makeRequest('POST', '/api/agents/a-1001/pause', { reason: 'Reunión' });
+          console.log('Respuesta Pause:', pauseRes.data);
+        },
+        waitAfter: 2000,
+      },
+      {
+        description: '11. Entrada de llamada c-003 que queda EN_COLA (sin agentes)',
+        event: {
+          eventId: 'e-008',
+          ts: '2026-11-10T14:07:00Z',
+          type: 'call.incoming',
+          callId: 'c-003',
+          queue: 'ventas',
+          callerId: '+573201122334',
+        },
+        waitAfter: 4000,
+      },
+      {
+        description: '12. Cliente cuelga o vence el tiempo máximo de espera -> llamada pasa a ABANDONADA',
+        event: {
+          eventId: 'e-009',
+          ts: '2026-11-10T14:08:00Z',
+          type: 'call.hangup',
+          callId: 'c-003',
         },
         waitAfter: 2000,
       },
