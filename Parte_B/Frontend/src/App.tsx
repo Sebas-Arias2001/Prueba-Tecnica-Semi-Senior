@@ -17,6 +17,8 @@ interface QueueMetrics {
   attendedCalls: number;
   abandonedCalls: number;
   longestWaitSeconds: number;
+  asaSeconds?: number;
+  serviceLevelPercent?: number;
 }
 
 interface Queue {
@@ -255,6 +257,20 @@ export default function App() {
                   <div style={{ fontSize: '12px', color: '#9c4221', fontWeight: 600 }}>Espera Actual</div>
                   <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#7b341e' }}>
                     {(queue.metrics?.longestWaitSeconds ?? 0)}s
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#faf5ff', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #805ad5' }}>
+                  <div style={{ fontSize: '12px', color: '#553c9a', fontWeight: 600 }}>ASA (Vel. Respuesta)</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#44337a' }}>
+                    {(queue.metrics?.asaSeconds ?? 0)}s
+                  </div>
+                </div>
+
+                <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #10b981' }}>
+                  <div style={{ fontSize: '12px', color: '#047857', fontWeight: 600 }}>Nivel Servicio (≤20s)</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#065f46' }}>
+                    {queue.metrics?.serviceLevelPercent ?? 100}%
                   </div>
                 </div>
               </div>

@@ -509,11 +509,28 @@ export class CallQueueService {
       }
     }
 
-    // 2. Contar atendidas y abandonadas para esta cola
+    // 2. Contar atendidas, abandonadas, calcular ASA y Nivel de Servicio (SLA <= 20s)
+    let totalAnswerSpeedSeconds = 0;
+    let answeredWithinSlaCount = 0;
+    const SLA_THRESHOLD_SECONDS = 20;
+
     callsStore.forEach((call) => {
       if (call.queue === queueId) {
         if (call.state === 'FINALIZADA' || call.state === 'CONECTADA') {
           attendedCount++;
+
+          // Cálculo del tiempo hasta respuesta (connected - incoming)
+          if (call.timestamps.incoming && call.timestamps.connected) {
+            const incomingMs = new Date(call.timestamps.incoming).getTime();
+            const connectedMs = new Date(call.timestamps.connected).getTime();
+            const answerSpeedSec = Math.max(0, Math.floor((connectedMs - incomingMs) / 1000));
+
+            totalAnswerSpeedSeconds += answerSpeedSec;
+
+            if (answerSpeedSec <= SLA_THRESHOLD_SECONDS) {
+              answeredWithinSlaCount++;
+            }
+          }
         }
         if (call.state === 'ABANDONADA') {
           abandonedCount++;
@@ -521,11 +538,16 @@ export class CallQueueService {
       }
     });
 
+    const asaSeconds = attendedCount > 0 ? Math.round(totalAnswerSpeedSeconds / attendedCount) : 0;
+    const serviceLevelPercent = attendedCount > 0 ? Math.round((answeredWithinSlaCount / attendedCount) * 100) : 100;
+
     return {
       waitingCalls: queueList.length,
       attendedCalls: attendedCount,
       abandonedCalls: abandonedCount,
       longestWaitSeconds,
+      asaSeconds,
+      serviceLevelPercent,
     };
   }
 

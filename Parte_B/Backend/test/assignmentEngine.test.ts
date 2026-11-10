@@ -141,5 +141,31 @@ describe('Motor de asignación y métricas de colas', () => {
     assert.strictEqual(metrics.abandonedCalls, 1);
     assert.strictEqual(metrics.waitingCalls, 0);
   });
+
+  it('Calcula correctamente ASA y Nivel de Servicio (SLA <= 20s)', () => {
+    AgentService.changeState('a-1001', 'DISPONIBLE');
+
+    // Llamada 1: contestada en 10s (dentro de SLA <= 20s)
+    CallQueueService.handleIncomingCall('c-sla-1', 'soporte', '+573001486178', '2026-11-10T10:00:00.000Z');
+    CallQueueService.handleCallAnswered('c-sla-1', 'a-1001', '2026-11-10T10:00:10.000Z');
+    CallQueueService.handleCallHangup('c-sla-1');
+
+    // Liberar agente para segunda llamada
+    AgentService.changeState('a-1001', 'DISPONIBLE');
+
+    // Llamada 2: contestada en 30s (fuera de SLA > 20s)
+    CallQueueService.handleIncomingCall('c-sla-2', 'soporte', '+573002876211', '2026-11-10T10:05:00.000Z');
+    CallQueueService.handleCallAnswered('c-sla-2', 'a-1001', '2026-11-10T10:05:30.000Z');
+    CallQueueService.handleCallHangup('c-sla-2');
+
+    const metrics = CallQueueService.getQueueMetrics('soporte');
+    assert.strictEqual(metrics.attendedCalls, 2);
+
+    // ASA = (10s + 30s) / 2 = 20s
+    assert.strictEqual(metrics.asaSeconds, 20);
+
+    // SLA = 1 de 2 contestadas en <= 20s = 50%
+    assert.strictEqual(metrics.serviceLevelPercent, 50);
+  });
 });
 

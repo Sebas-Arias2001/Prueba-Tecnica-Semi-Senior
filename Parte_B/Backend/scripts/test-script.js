@@ -212,6 +212,22 @@ async function run() {
     }
 
     console.log('\n====================================================');
+    console.log('   CONSULTANDO MÉTRICAS FINALES DE COLAS            ');
+    console.log('====================================================');
+    const queuesRes = await makeRequest('GET', '/api/queues');
+    if (Array.isArray(queuesRes.data)) {
+      queuesRes.data.forEach((q) => {
+        console.log(`\nCola: [${q.name}] (${q.id})`);
+        console.log(`- En espera: ${q.metrics?.waitingCalls}`);
+        console.log(`- Atendidas: ${q.metrics?.attendedCalls}`);
+        console.log(`- Abandonadas: ${q.metrics?.abandonedCalls}`);
+        console.log(`- Espera más larga actual: ${q.metrics?.longestWaitSeconds}s`);
+        console.log(`- ASA (Velocidad Promedio de Respuesta): ${q.metrics?.asaSeconds}s`);
+        console.log(`- Nivel de Servicio (SLA <= 20s): ${q.metrics?.serviceLevelPercent}%`);
+      });
+    }
+
+    console.log('\n====================================================');
     console.log('   SIMULACIÓN COMPLETADA CON ÉXITO                  ');
     console.log('====================================================');
   } catch (err) {

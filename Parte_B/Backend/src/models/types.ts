@@ -35,6 +35,8 @@ export interface QueueMetrics {
   attendedCalls: number;
   abandonedCalls: number;
   longestWaitSeconds: number;
+  asaSeconds: number; // Average Speed of Answer en segundos
+  serviceLevelPercent: number; // % de llamadas contestadas en <= 20s
 }
 
 export interface QueueWithMetrics extends Queue {
