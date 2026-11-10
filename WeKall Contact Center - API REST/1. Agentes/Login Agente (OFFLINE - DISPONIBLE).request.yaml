@@ -1,0 +1,6 @@
+$kind: http-request
+name: Login Agente (OFFLINE -> DISPONIBLE)
+description: Cambia el estado del agente de OFFLINE a DISPONIBLE. Si hay llamadas en espera en sus colas, se le asigna de inmediato la más antigua.
+url: "{{baseUrl}}/agents/{{agentId}}/login"
+method: POST
+order: 2000

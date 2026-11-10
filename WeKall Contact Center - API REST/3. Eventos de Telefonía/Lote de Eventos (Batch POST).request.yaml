@@ -1,0 +1,27 @@
+$kind: http-request
+description: Envío de múltiples eventos de telefonía en un solo payload tipo arreglo.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    [
+      {
+        "eventId": "b-01",
+        "ts": "2026-11-10T15:00:00Z",
+        "type": "call.incoming",
+        "callId": "call-batch-1",
+        "queue": "ventas",
+        "callerId": "+573112223344"
+      },
+      {
+        "eventId": "b-02",
+        "ts": "2026-11-10T15:00:05Z",
+        "type": "call.answered",
+        "callId": "call-batch-1",
+        "agentId": "a-1003"
+      }
+    ]
+order: 6000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: Retorna la lista de todos los agentes registrados con su estado actual, colas asignadas y motivo de pausa si aplica.
+url: "{{baseUrl}}/agents"
+method: GET
+order: 1000

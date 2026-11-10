@@ -1,0 +1,6 @@
+$kind: http-request
+name: Despausar Agente (PAUSA -> DISPONIBLE)
+description: Regresa al agente a DISPONIBLE y busca llamadas en espera para asignarle.
+url: "{{baseUrl}}/agents/{{agentId}}/unpause"
+method: POST
+order: 4000

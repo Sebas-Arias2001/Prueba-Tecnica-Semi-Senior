@@ -1,0 +1,6 @@
+$kind: http-request
+name: Logout Agente (DISPONIBLE/PAUSA -> OFFLINE)
+description: Desconecta al agente pasando su estado a OFFLINE.
+url: "{{baseUrl}}/agents/{{agentId}}/logout"
+method: POST
+order: 5000

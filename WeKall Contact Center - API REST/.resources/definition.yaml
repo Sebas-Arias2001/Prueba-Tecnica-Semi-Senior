@@ -1,0 +1,5 @@
+$kind: collection
+description: Colección completa de endpoints para pruebas manuales del Contact Center WeKall (Squad Poseidón).
+variables:
+  baseUrl: http://localhost:3000/api
+  agentId: a-1001

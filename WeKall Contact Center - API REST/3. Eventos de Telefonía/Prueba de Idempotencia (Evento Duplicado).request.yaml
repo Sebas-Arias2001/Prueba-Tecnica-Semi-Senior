@@ -1,0 +1,17 @@
+$kind: http-request
+description: Mismo eventId que el evento ya procesado. Retorna status 'ignored_duplicate' sin alterar el estado.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "eventId": "evt-002",
+      "ts": "2026-11-10T14:00:08Z",
+      "type": "call.answered",
+      "callId": "call-100",
+      "agentId": "a-1001"
+    }
+order: 5000

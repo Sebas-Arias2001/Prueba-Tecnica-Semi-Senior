@@ -1,0 +1,18 @@
+$kind: http-request
+description: Ingresa una llamada a la cola. Si hay agentes libres, se asigna y pasa a TIMBRANDO.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "eventId": "evt-001",
+      "ts": "2026-11-10T14:00:00Z",
+      "type": "call.incoming",
+      "callId": "call-100",
+      "queue": "soporte",
+      "callerId": "+573001234567"
+    }
+order: 1000

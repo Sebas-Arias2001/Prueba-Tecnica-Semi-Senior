@@ -1,0 +1,16 @@
+$kind: http-request
+description: El agente que estaba timbrando pasa a PAUSA ('No contesta') y la llamada vuelve al inicio de la cola.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "eventId": "evt-004",
+      "ts": "2026-11-10T14:05:20Z",
+      "type": "call.noanswer",
+      "callId": "call-200"
+    }
+order: 4000

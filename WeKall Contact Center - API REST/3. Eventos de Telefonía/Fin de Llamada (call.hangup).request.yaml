@@ -1,0 +1,16 @@
+$kind: http-request
+description: Finaliza la llamada (FINALIZADA) y el agente pasa a WRAP_UP por 15 segundos automáticos.
+url: "{{baseUrl}}/events"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "eventId": "evt-003",
+      "ts": "2026-11-10T14:03:00Z",
+      "type": "call.hangup",
+      "callId": "call-100"
+    }
+order: 3000

@@ -1,0 +1,5 @@
+$kind: http-request
+description: "Retorna todas las colas con sus métricas en tiempo real: waitingCalls, attendedCalls, abandonedCalls, longestWaitSeconds, asaSeconds y serviceLevelPercent."
+url: "{{baseUrl}}/queues"
+method: GET
+order: 1000

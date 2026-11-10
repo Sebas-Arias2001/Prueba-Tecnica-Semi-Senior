@@ -1,0 +1,7 @@
+$kind: http-request
+description: Canal continuo de Server-Sent Events. En Postman se observa la conexión abierta recibiendo los updates en tiempo real.
+url: "{{baseUrl}}/stream"
+method: GET
+headers:
+  Accept: text/event-stream
+order: 1000

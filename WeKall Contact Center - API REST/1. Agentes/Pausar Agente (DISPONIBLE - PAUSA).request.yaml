@@ -1,0 +1,14 @@
+$kind: http-request
+name: Pausar Agente (DISPONIBLE -> PAUSA)
+description: Pasa al agente a estado PAUSA con un motivo personalizado.
+url: "{{baseUrl}}/agents/{{agentId}}/pause"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "reason": "Almuerzo"
+    }
+order: 3000
